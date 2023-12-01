@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source ./send_message.sh;
+
 if [ -f count.txt ]; then
     prev_count=$(cat count.txt);
 else
@@ -26,9 +28,28 @@ while true; do
         break;
     fi
 
-    echo $count;
-    echo $count > count.txt;
+    if [ $count -ne $prev_count ]; then
+        echo $count;
+        echo $count > count.txt;
 
-    sleep 1;
+        if [ $count -gt $prev_count ]; then
+            message="New property added in Stellenbosch. Count: $count";
+            echo $message;
+
+            send_message \
+            "$TELEGRAM_TOKEN" \
+            "$TELEGRAM_CHAT_ID" \
+            "$message";
+
+        else
+            echo "Property removed in Stellenbosch. Count: $count";
+        fi
+
+        prev_count=$count;
+
+    fi
+
+    echo -n ".";
+    sleep 60;
 
 done
