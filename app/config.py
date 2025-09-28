@@ -10,10 +10,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.logger import get_logger
 
 DEFAULT_COUNT_FILE = "count.txt"
+DEFAULT_PAYLOAD_FILE = "data/payload.json"
 DEFAULT_POLL_INTERVAL = 60
 MIN_POLL_INTERVAL = 10
 
 logger = get_logger(__name__)
+
+def _coerce_path_value(value: Path | str | None, default: str) -> Path:
+    if value is None:
+        return Path(default)
+    if isinstance(value, Path):
+        return value
+    value = value.strip()
+    return Path(value or default)
 
 
 class MonitorSettings(BaseSettings):
@@ -32,6 +41,10 @@ class MonitorSettings(BaseSettings):
     count_file: Path = Field(
         default=Path(DEFAULT_COUNT_FILE),
         validation_alias=AliasChoices("P24_COUNT_FILE"),
+    )
+    payload_file: Path = Field(
+        default=Path(DEFAULT_PAYLOAD_FILE),
+        validation_alias=AliasChoices("P24_PAYLOAD_FILE"),
     )
     poll_interval: int = Field(
         default=DEFAULT_POLL_INTERVAL,
@@ -53,12 +66,12 @@ class MonitorSettings(BaseSettings):
     @field_validator("count_file", mode="before")
     @classmethod
     def _coerce_count_file(cls, value: Path | str | None) -> Path:
-        if value is None:
-            return Path(DEFAULT_COUNT_FILE)
-        if isinstance(value, Path):
-            return value
-        value = value.strip()
-        return Path(value or DEFAULT_COUNT_FILE)
+        return _coerce_path_value(value, DEFAULT_COUNT_FILE)
+
+    @field_validator("payload_file", mode="before")
+    @classmethod
+    def _coerce_payload_file(cls, value: Path | str | None) -> Path:
+        return _coerce_path_value(value, DEFAULT_PAYLOAD_FILE)
 
     @field_validator("poll_interval", mode="after")
     @classmethod

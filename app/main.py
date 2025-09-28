@@ -6,7 +6,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import IO, Optional, Protocol, cast
+from typing import IO, Mapping, Optional, Protocol, cast
 from urllib import error, request
 
 from pydantic import ValidationError
@@ -16,50 +16,6 @@ from app.logger import configure_logging, get_logger
 
 PROPERTY_COUNTER_URL = "https://www.property24.com/search/counter"
 TELEGRAM_SEND_MESSAGE_URL = "https://api.telegram.org/bot{token}/sendMessage"
-
-
-SEARCH_PAYLOAD = {
-    "bedrooms": 0,
-    "bathrooms": 0,
-    "availability": 0,
-    "rentalRates": [],
-    "sizeFrom": {"isCustom": False, "value": None},
-    "sizeTo": {"isCustom": False, "value": None},
-    "erfSizeFrom": {"isCustom": False, "value": None},
-    "erfSizeTo": {"isCustom": False, "value": None},
-    "floorSizeFrom": {"isCustom": False, "value": None},
-    "floorSizeTo": {"isCustom": False, "value": None},
-    "parkingType": 1,
-    "parkingSpaces": 0,
-    "hasFlatlet": None,
-    "hasGarden": None,
-    "hasPool": None,
-    "furnishedStatus": 2,
-    "isPetFriendly": None,
-    "isRepossessed": None,
-    "isRetirement": None,
-    "isInSecurityEstate": None,
-    "onAuction": None,
-    "onShow": None,
-    "propertyTypes": [4, 5, 6],
-    "autoCompleteItems": [
-        {
-            "id": 459,
-            "name": "Stellenbosch",
-            "parentId": None,
-            "parentName": "Western Cape",
-            "type": 2,
-            "source": 0,
-            "normalizedName": "stellenbosch",
-        }
-    ],
-    "searchContextType": 1,
-    "priceFrom": {"isCustom": False, "value": None},
-    "priceTo": {"isCustom": False, "value": None},
-    "searchType": 1,
-    "sortOrder": 0,
-    "developmentSubType": 0,
-}
 
 
 logger = get_logger(__name__)
@@ -75,6 +31,23 @@ class UrlOpener(Protocol):
 
 
 DEFAULT_OPENER = cast(UrlOpener, request.urlopen)
+
+
+def load_search_payload(path: Path) -> Mapping[str, object]:
+    """Load the search payload from disk."""
+
+    try:
+        with path.open(encoding="utf-8") as payload_file:
+            payload = json.load(payload_file)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Payload file not found: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid JSON content in payload file: {path}") from exc
+
+    if not isinstance(payload, dict):
+        raise RuntimeError("Payload file must contain a JSON object")
+
+    return payload
 
 
 def read_previous_count(count_file: Path) -> int:
@@ -106,8 +79,8 @@ def write_count(count_file: Path, value: int) -> None:
 
 
 def fetch_property_count(
+    payload: Mapping[str, object],
     opener: UrlOpener = DEFAULT_OPENER,
-    payload: dict = SEARCH_PAYLOAD,
 ) -> int:
     """Call the Property24 counter endpoint and return the current listing count."""
 
@@ -160,6 +133,7 @@ def send_message(
 
 def monitor_property_count(
     settings: MonitorSettings,
+    payload: Mapping[str, object],
     opener: UrlOpener = DEFAULT_OPENER,
 ) -> None:
     """Monitor the property count and notify when new listings appear."""
@@ -174,7 +148,7 @@ def monitor_property_count(
     try:
         while True:
             try:
-                current_count = fetch_property_count(opener=opener)
+                current_count = fetch_property_count(payload, opener=opener)
             except RuntimeError as exc:
                 logger.error("%s", exc)
                 time.sleep(settings.poll_interval)
@@ -229,7 +203,13 @@ def main() -> None:
     configure_logging(settings.log_level)
     logger.setLevel(settings.log_level)
 
-    monitor_property_count(settings)
+    try:
+        payload = load_search_payload(settings.payload_file)
+    except RuntimeError as exc:
+        logger.error("%s", exc)
+        raise SystemExit(1) from exc
+
+    monitor_property_count(settings, payload)
 
 
 if __name__ == "__main__":
