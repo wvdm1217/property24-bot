@@ -1,3 +1,5 @@
 #!/bin/bash
 
-pipx install uv
+echo "Starting: Post Create Command"
+
+echo "Finishing: Post Create Command"
