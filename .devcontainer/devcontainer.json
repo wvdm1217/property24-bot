@@ -8,7 +8,9 @@
 		"vscode": {
 			"extensions": [
 				"charliermarsh.ruff",
-				"astral-sh.ty"
+				"ms-python.mypy-type-checker",
+				"ms-python.debugpy",
+				"ms-python.vscode-python-envs"
 			]
 		}
 	},
