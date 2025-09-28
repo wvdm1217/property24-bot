@@ -6,10 +6,8 @@ repos:
     # Run the linter.
     - id: ruff-check
       args: [ --fix ]
-      stages: [pre-commit]
     # Run the formatter.
     - id: ruff-format
-      stages: [pre-commit]
 
 - repo: https://github.com/astral-sh/uv-pre-commit
   # uv version.
