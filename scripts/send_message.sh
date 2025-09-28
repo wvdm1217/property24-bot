@@ -1,3 +1,4 @@
+# Use with caution: telegram has blocked accounts for spamming
 function send_message() {
     local token=$1;
     local chat_id=$2;
