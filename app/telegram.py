@@ -22,4 +22,8 @@ if __name__ == "__main__":
     from app.config import MonitorSettings
     settings = MonitorSettings()
 
-    send_message(token=settings.token, chat_id=settings.chat_id, text="Hello, World!")
+    send_message(
+        token=settings.token,
+        chat_id=settings.chat_id,
+        text="Hello, World!",
+    )

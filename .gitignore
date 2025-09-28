@@ -2,3 +2,4 @@
 __pycache__/
 count.txt
 data/
+.mypy_cache/
