@@ -77,7 +77,7 @@ def fetch_property_count(
         PROPERTY_COUNTER_URL,
         data=body,
         headers={"Content-Type": "application/json"},
-        timeout=10
+        timeout=10,
     )
 
     try:
@@ -89,9 +89,6 @@ def fetch_property_count(
         return int(data["count"])
     except (KeyError, TypeError, ValueError) as exc:
         raise RuntimeError("Property count missing in response") from exc
-
-
-
 
 
 def monitor_property_count(
@@ -125,18 +122,15 @@ def monitor_property_count(
                         f"New property added in {settings.location_name}. "
                         f"Count: {current_count}"
                     )
-                    if send_message(
-                        token=settings.token,
-                        chat_id=settings.chat_id,
-                        text=message,
-                    ):
+                    try:
+                        send_message(
+                            token=settings.token,
+                            chat_id=settings.chat_id,
+                            text=message,
+                        )
                         logger.info("Telegram notification sent")
-                else:
-                    logger.info(
-                        "Property removed in %s. Count: %s",
-                        settings.location_name,
-                        current_count,
-                    )
+                    except Exception as e:
+                        logger.error("Failed to send Telegram message: %s", e)
 
                 previous_count = current_count
             else:

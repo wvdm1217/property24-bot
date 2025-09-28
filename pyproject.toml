@@ -5,6 +5,7 @@ description = "A Property 24 webscraping bot that uses telegram for notification
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "pydantic>=2.11.9",
     "pydantic-settings>=2.11.0",
     "requests>=2.32.5",
 ]
@@ -15,6 +16,7 @@ dev = [
     "pre-commit>=4.3.0",
     "pytest>=8.4.2",
     "ruff>=0.13.2",
+    "types-requests>=2.32.4.20250913",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -49,3 +51,6 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.mypy]
+plugins = ['pydantic.mypy']

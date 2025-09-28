@@ -53,5 +53,5 @@ uv run python -m app.main
 or 
 
 ```bash
-docker run property24 --env-file .env
+docker run --env-file .env property24
 ```
