@@ -31,4 +31,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT []
 
-CMD ["uv", "run", "app/main.py"]
+CMD ["python", "-m", "app.main"]
