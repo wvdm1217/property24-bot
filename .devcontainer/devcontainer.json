@@ -3,5 +3,16 @@
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
-	"postCreateCommand": "bash .devcontainer/commands/post-create-command.sh"
+	"postCreateCommand": "bash .devcontainer/commands/post-create-command.sh",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"charliermarsh.ruff",
+				"astral-sh.ty"
+			]
+		}
+	},
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
+	}
 }
