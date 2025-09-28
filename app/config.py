@@ -9,12 +9,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.logger import get_logger
 
-DEFAULT_COUNT_FILE = "count.txt"
+DEFAULT_COUNT_FILE = "data/count.txt"
 DEFAULT_PAYLOAD_FILE = "data/payload.json"
 DEFAULT_POLL_INTERVAL = 60
 MIN_POLL_INTERVAL = 10
+DEFAULT_LISTING_FILE = "listing.txt"
+DEFAULT_PREVIOUS_LISTING_FILE = "old.txt"
+DEFAULT_NEW_LISTING_FILE = "new.txt"
 
 logger = get_logger(__name__)
+
 
 def _coerce_path_value(value: Path | str | None, default: str) -> Path:
     if value is None:
@@ -76,6 +80,18 @@ class MonitorSettings(BaseSettings):
         default="INFO",
         validation_alias=AliasChoices("P24_LOG_LEVEL"),
     )
+    listing_file: Path = Field(
+        default=Path(DEFAULT_LISTING_FILE),
+        validation_alias=AliasChoices("P24_LISTING_FILE"),
+    )
+    previous_listing_file: Path = Field(
+        default=Path(DEFAULT_PREVIOUS_LISTING_FILE),
+        validation_alias=AliasChoices("P24_LISTING_PREVIOUS_FILE"),
+    )
+    new_listing_file: Path = Field(
+        default=Path(DEFAULT_NEW_LISTING_FILE),
+        validation_alias=AliasChoices("P24_NEW_LISTING_FILE"),
+    )
 
     @field_validator("count_file", mode="before")
     @classmethod
@@ -104,3 +120,17 @@ class MonitorSettings(BaseSettings):
     def _normalise_log_level(cls, value: str) -> str:
         return value.upper()
 
+    @field_validator("listing_file", mode="before")
+    @classmethod
+    def _coerce_listing_file(cls, value: Path | str | None) -> Path:
+        return _coerce_path_value(value, DEFAULT_LISTING_FILE)
+
+    @field_validator("previous_listing_file", mode="before")
+    @classmethod
+    def _coerce_previous_listing_file(cls, value: Path | str | None) -> Path:
+        return _coerce_path_value(value, DEFAULT_PREVIOUS_LISTING_FILE)
+
+    @field_validator("new_listing_file", mode="before")
+    @classmethod
+    def _coerce_new_listing_file(cls, value: Path | str | None) -> Path:
+        return _coerce_path_value(value, DEFAULT_NEW_LISTING_FILE)

@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from app.config import MonitorSettings
 from app.logger import configure_logging, get_logger
+from app.property24 import ListingTracker, fetch_listing_urls
 from app.telegram import send_message
 
 PROPERTY_COUNTER_URL = "https://www.property24.com/search/counter"
@@ -98,6 +99,11 @@ def monitor_property_count(
     """Monitor the property count and notify when new listings appear."""
 
     previous_count = read_previous_count(settings.count_file)
+    tracker = ListingTracker(
+        listing_file=settings.listing_file,
+        previous_file=settings.previous_listing_file,
+        new_file=settings.new_listing_file,
+    )
     logger.info(
         "Starting monitor for %s (previous count: %s)",
         settings.location_name,
@@ -117,11 +123,38 @@ def monitor_property_count(
                 logger.info("Property count changed: %s", current_count)
                 write_count(settings.count_file, current_count)
 
-                if current_count > previous_count:
-                    message = (
-                        f"New property added in {settings.location_name}. "
-                        f"Count: {current_count}"
+                listing_urls: list[str] = []
+                newly_added_urls: list[str] = []
+                try:
+                    listing_urls = fetch_listing_urls(payload, count=current_count)
+                except RuntimeError as exc:
+                    logger.error("Failed to fetch listing URLs: %s", exc)
+                else:
+                    newly_added_urls = tracker.record(listing_urls)
+                    logger.debug(
+                        "Recorded %s listings (%s new)",
+                        len(listing_urls),
+                        len(newly_added_urls),
                     )
+
+                if current_count > previous_count:
+                    message_lines = [
+                        (
+                            f"New property added in {settings.location_name}. "
+                            f"Count: {current_count}"
+                        )
+                    ]
+
+                    if newly_added_urls:
+                        max_display = 10
+                        display_urls = newly_added_urls[:max_display]
+                        message_lines.append("New listings:")
+                        message_lines.extend(display_urls)
+                        remaining = len(newly_added_urls) - len(display_urls)
+                        if remaining > 0:
+                            message_lines.append(f"...and {remaining} more")
+
+                    message = "\n".join(message_lines)
                     try:
                         send_message(
                             token=settings.token,
