@@ -6,31 +6,20 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import IO, Mapping, Optional, Protocol, cast
-from urllib import error, request
+from typing import Mapping
 
+import requests
 from pydantic import ValidationError
 
 from app.config import MonitorSettings
 from app.logger import configure_logging, get_logger
+from app.telegram import send_message
 
 PROPERTY_COUNTER_URL = "https://www.property24.com/search/counter"
 TELEGRAM_SEND_MESSAGE_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
 
 logger = get_logger(__name__)
-
-
-class UrlOpener(Protocol):
-    """Protocol describing the signature of urllib opener functions."""
-
-    def __call__(
-        self, request: request.Request, timeout: Optional[float] = None
-    ) -> IO[bytes]:
-        ...
-
-
-DEFAULT_OPENER = cast(UrlOpener, request.urlopen)
 
 
 def load_search_payload(path: Path) -> Mapping[str, object]:
@@ -80,22 +69,20 @@ def write_count(count_file: Path, value: int) -> None:
 
 def fetch_property_count(
     payload: Mapping[str, object],
-    opener: UrlOpener = DEFAULT_OPENER,
 ) -> int:
     """Call the Property24 counter endpoint and return the current listing count."""
 
     body = json.dumps(payload).encode("utf-8")
-    req = request.Request(
+    req = requests.post(
         PROPERTY_COUNTER_URL,
         data=body,
         headers={"Content-Type": "application/json"},
-        method="POST",
+        timeout=10
     )
 
     try:
-        with opener(req, timeout=20) as response:
-            data = json.load(response)
-    except error.URLError as exc:
+        data = req.json()
+    except requests.RequestException as exc:
         raise RuntimeError("Failed to fetch property count") from exc
 
     try:
@@ -104,37 +91,12 @@ def fetch_property_count(
         raise RuntimeError("Property count missing in response") from exc
 
 
-def send_message(
-    token: str,
-    chat_id: str,
-    text: str,
-    *,
-    opener: UrlOpener = DEFAULT_OPENER,
-) -> bool:
-    """Send a Telegram message with the provided bot credentials."""
 
-    payload = json.dumps({"chat_id": chat_id, "text": text}).encode("utf-8")
-    url = TELEGRAM_SEND_MESSAGE_URL.format(token=token)
-    req = request.Request(
-        url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    try:
-        with opener(req, timeout=10) as response:
-            response.read()  # Ensure request completes
-        return True
-    except error.URLError as exc:
-        logger.error("Failed to send Telegram message: %s", exc)
-        return False
 
 
 def monitor_property_count(
     settings: MonitorSettings,
     payload: Mapping[str, object],
-    opener: UrlOpener = DEFAULT_OPENER,
 ) -> None:
     """Monitor the property count and notify when new listings appear."""
 
@@ -148,7 +110,7 @@ def monitor_property_count(
     try:
         while True:
             try:
-                current_count = fetch_property_count(payload, opener=opener)
+                current_count = fetch_property_count(payload)
             except RuntimeError as exc:
                 logger.error("%s", exc)
                 time.sleep(settings.poll_interval)
@@ -164,10 +126,9 @@ def monitor_property_count(
                         f"Count: {current_count}"
                     )
                     if send_message(
-                        settings.token,
-                        settings.chat_id,
-                        message,
-                        opener=opener,
+                        token=settings.token,
+                        chat_id=settings.chat_id,
+                        text=message,
                     ):
                         logger.info("Telegram notification sent")
                 else:
