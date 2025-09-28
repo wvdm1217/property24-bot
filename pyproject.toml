@@ -18,6 +18,9 @@ dev = [
     "ruff>=0.13.2",
     "types-requests>=2.32.4.20250913",
 ]
+web = [
+    "playwright>=1.55.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

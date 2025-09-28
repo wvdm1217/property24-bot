@@ -13,6 +13,7 @@ import requests
 from app.logger import get_logger
 
 BASE_URL = "https://www.property24.com"
+ADVANCED_SEARCH_PATH = "/to-rent/advanced-search/results"
 PAGE_SIZE = 20
 
 DEFAULT_LISTING_FILE = Path("listing.txt")
@@ -96,17 +97,111 @@ def _build_listing_path(payload: Mapping[str, object]) -> str:
     return f"/to-rent/{area_slug}/{location_id}"
 
 
-def _build_listing_page_url(payload: Mapping[str, object], page: int) -> str:
-    base_path = _build_listing_path(payload)
-    query_string = ""
+def _normalize_auto_complete_items(
+    payload: Mapping[str, object],
+) -> list[Mapping[str, object]]:
+    items = payload.get("autoCompleteItems")
+    if not isinstance(items, Sequence) or isinstance(items, (str, bytes)):
+        return []
+
+    normalized: list[Mapping[str, object]] = []
+    for entry in items:
+        if isinstance(entry, Mapping):
+            normalized.append(entry)
+    return normalized
+
+
+def _extract_location_ids(items: Sequence[Mapping[str, object]]) -> list[str]:
+    location_ids: list[str] = []
+    for item in items:
+        location_id = item.get("id")
+        if isinstance(location_id, bool):
+            continue
+        if isinstance(location_id, (int, str)):
+            value = str(location_id).strip()
+            if value:
+                location_ids.append(value)
+    return location_ids
+
+
+def _coerce_numeric_query_value(data: object) -> str | None:
+    if isinstance(data, Mapping):
+        data = data.get("value")
+
+    if data is None or isinstance(data, bool):
+        return None
+
+    if isinstance(data, (int, float)):
+        if not math.isfinite(float(data)):
+            return None
+        if float(data) <= 0:
+            return None
+        if float(data).is_integer():
+            return str(int(float(data)))
+        return str(data)
+
+    if isinstance(data, str):
+        stripped = data.strip()
+        if not stripped or stripped == "0":
+            return None
+        return stripped
+
+    return None
+
+
+def _build_standard_listing_page_url(
+    payload: Mapping[str, object],
+    page: int,
+) -> str:
+    base_path = _build_listing_path(payload).rstrip("/")
+    page_path = f"{base_path}/p{page}"
+
+    query_params: list[tuple[str, str]] = []
     categories = _build_property_categories(payload)
     if categories:
-        query_string = urlencode({"PropertyCategory": ",".join(categories)})
+        query_params.append(("PropertyCategory", ",".join(categories)))
 
-    suffix = f"/p{page}"
-    if query_string:
-        suffix = f"{suffix}?{query_string}"
-    return f"{BASE_URL}{base_path}{suffix}"
+    query_string = urlencode(query_params)
+    suffix = f"?{query_string}" if query_string else ""
+    return f"{BASE_URL}{page_path}{suffix}"
+
+
+def _build_advanced_search_url(
+    payload: Mapping[str, object],
+    page: int,
+    auto_complete_items: Sequence[Mapping[str, object]],
+) -> str:
+    location_ids = _extract_location_ids(auto_complete_items)
+    if not location_ids:
+        raise RuntimeError("Advanced search payload missing location identifiers")
+
+    sp_pairs: list[tuple[str, str]] = [("s", ",".join(location_ids))]
+
+    for source_key, target_key in (("priceFrom", "pf"), ("priceTo", "pt")):
+        value = _coerce_numeric_query_value(payload.get(source_key))
+        if value is not None:
+            sp_pairs.append((target_key, value))
+
+    sp_value = "&".join(f"{key}={value}" for key, value in sp_pairs)
+
+    query_params: list[tuple[str, str]] = [("sp", sp_value)]
+    categories = _build_property_categories(payload)
+    if categories:
+        query_params.append(("PropertyCategory", ",".join(categories)))
+    if page > 1:
+        query_params.append(("Page", str(page)))
+
+    query_string = urlencode(query_params)
+    suffix = f"?{query_string}" if query_string else ""
+    return f"{BASE_URL}{ADVANCED_SEARCH_PATH}{suffix}"
+
+
+def _build_listing_page_url(payload: Mapping[str, object], page: int) -> str:
+    auto_complete_items = _normalize_auto_complete_items(payload)
+    if len(auto_complete_items) > 1:
+        return _build_advanced_search_url(payload, page, auto_complete_items)
+
+    return _build_standard_listing_page_url(payload, page)
 
 
 def _extract_listing_urls(html: str, valid_numbers: Iterable[str]) -> list[str]:

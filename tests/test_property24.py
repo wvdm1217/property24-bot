@@ -1,8 +1,9 @@
 from pathlib import Path
+from urllib.parse import urlencode
 
 import pytest
 
-from app.property24 import ListingTracker, fetch_listing_urls
+from app.property24 import BASE_URL, ListingTracker, fetch_listing_urls
 
 
 class DummyResponse:
@@ -59,6 +60,38 @@ def test_fetch_listing_urls_extracts_unique_links(
     assert urls == [
         "https://www.property24.com/to-rent/stellenbosch/western-cape/459/12345",
         "https://www.property24.com/to-rent/stellenbosch/western-cape/459/67890",
+    ]
+
+
+def test_fetch_listing_urls_uses_advanced_search_for_multiple_locations() -> None:
+    payload = {
+        "autoCompleteItems": [
+            {"id": 9136},
+            {"id": 9163},
+        ],
+        "propertyTypes": [4, 5, 6],
+        "priceTo": {"value": 20000},
+    }
+
+    html = """
+    <div data-listing-number="55555"></div>
+    <a href="/to-rent/bo-kaap/cape-town/9136/55555">Listing 55555</a>
+    """
+    session = DummySession(response_text=html)
+
+    urls = fetch_listing_urls(payload, count=1, session=session)  # type: ignore[arg-type]
+
+    expected_query = urlencode(
+        [
+            ("sp", "s=9136,9163&pt=20000"),
+            ("PropertyCategory", "House,ApartmentOrFlat,Townhouse"),
+        ]
+    )
+    expected_url = f"{BASE_URL}/to-rent/advanced-search/results?{expected_query}"
+
+    assert session.called_urls == [expected_url]
+    assert urls == [
+        f"{BASE_URL}/to-rent/bo-kaap/cape-town/9136/55555",
     ]
 
 

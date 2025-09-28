@@ -13,9 +13,9 @@ DEFAULT_COUNT_FILE = "data/count.txt"
 DEFAULT_PAYLOAD_FILE = "data/payload.json"
 DEFAULT_POLL_INTERVAL = 60
 MIN_POLL_INTERVAL = 10
-DEFAULT_LISTING_FILE = "listing.txt"
-DEFAULT_PREVIOUS_LISTING_FILE = "old.txt"
-DEFAULT_NEW_LISTING_FILE = "new.txt"
+DEFAULT_LISTING_FILE = "data/listing.txt"
+DEFAULT_PREVIOUS_LISTING_FILE = "data/old.txt"
+DEFAULT_NEW_LISTING_FILE = "data/new.txt"
 
 logger = get_logger(__name__)
 
