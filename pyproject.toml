@@ -1,0 +1,7 @@
+[project]
+name = "property24-bot"
+version = "0.1.0"
+description = "A Property 24 webscraping bot that uses telegram for notifications."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
