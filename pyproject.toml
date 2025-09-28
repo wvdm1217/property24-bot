@@ -5,3 +5,8 @@ description = "A Property 24 webscraping bot that uses telegram for notification
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
