@@ -9,6 +9,22 @@ The bot needs to scan Property 24 and notify me whenever a new property has been
 
 You will need to create a Telegram bot and find the chat ID of the chat between yourself. 
 
+#### Chat ID
+
+1. Ping the bot with a message.
+2. Add the `TELEGRAM_TOKEN` to your `.env` and run,
+```bash
+uv run app/util/chat_id.py
+```
+3. From the response of the output set the `TELEGRAM_CHAT_ID`,
+```bash
+$ uv run app/util/chat_id.py
+Discovered chat IDs:
+
+ - id=1234567890, type=private, name=Werner van der Merwe
+```
+
+
 ### Environment settings
 Copy `.env.example` to `.env` and fill in your credentials. The application now uses [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) to load configuration, so values can come from the environment or the `.env` file.
 
@@ -32,4 +48,10 @@ docker build -t property24 .
 
 ```bash
 uv run python -m app.main
+```
+
+or 
+
+```bash
+docker run property24 --env-file .env
 ```

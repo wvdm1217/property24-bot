@@ -1,4 +1,4 @@
-FROM alpine3.21
+FROM alpine:3.22
 
 COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /uvx /bin/
 
@@ -31,4 +31,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT []
 
-CMD ["uv", "run", "app.main"]
+CMD ["uv", "run", "app/main.py"]

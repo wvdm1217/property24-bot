@@ -25,6 +25,20 @@ def _coerce_path_value(value: Path | str | None, default: str) -> Path:
     return Path(value or default)
 
 
+class TelegramSettings(BaseSettings):
+    """Minimal settings required for Telegram API access."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    token: str = Field(validation_alias=AliasChoices("TELEGRAM_TOKEN"))
+
+
 class MonitorSettings(BaseSettings):
     """Runtime configuration derived from the environment."""
 
