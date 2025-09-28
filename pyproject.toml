@@ -4,9 +4,38 @@ version = "0.1.0"
 description = "A Property 24 webscraping bot that uses telegram for notifications."
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "pydantic-settings>=2.11.0",
+]
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "ruff>=0.13.2",
 ]
+
+[tool.ruff]
+# Enable Black compatibility
+line-length = 88
+target-version = "py312"
+
+# Enable rules including isort (I) and format
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "W",   # pycodestyle warnings
+]
+
+# Isort settings
+[tool.ruff.lint.isort]
+force-single-line = false
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
