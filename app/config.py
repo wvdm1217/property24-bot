@@ -7,7 +7,7 @@ from pathlib import Path
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .logger import get_logger
+from app.logger import get_logger
 
 DEFAULT_COUNT_FILE = "count.txt"
 DEFAULT_POLL_INTERVAL = 60

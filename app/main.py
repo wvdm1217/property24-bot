@@ -11,8 +11,8 @@ from urllib import error, request
 
 from pydantic import ValidationError
 
-from .config import MonitorSettings
-from .logger import configure_logging, get_logger
+from app.config import MonitorSettings
+from app.logger import configure_logging, get_logger
 
 PROPERTY_COUNTER_URL = "https://www.property24.com/search/counter"
 TELEGRAM_SEND_MESSAGE_URL = "https://api.telegram.org/bot{token}/sendMessage"
