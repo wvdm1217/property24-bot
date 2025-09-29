@@ -53,5 +53,5 @@ uv run python -m app.main
 or 
 
 ```bash
-docker run --env-file .env property24
+docker run --env-file .env -v "$(pwd)/data/payload.json:/app/data/payload.json:ro" property24
 ```

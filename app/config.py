@@ -9,13 +9,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.logger import get_logger
 
-DEFAULT_COUNT_FILE = "data/count.txt"
 DEFAULT_PAYLOAD_FILE = "data/payload.json"
 DEFAULT_POLL_INTERVAL = 60
 MIN_POLL_INTERVAL = 10
-DEFAULT_LISTING_FILE = "data/listing.txt"
-DEFAULT_PREVIOUS_LISTING_FILE = "data/old.txt"
-DEFAULT_NEW_LISTING_FILE = "data/new.txt"
+DEFAULT_STATE_FILE = "data/state.duckdb"
 
 logger = get_logger(__name__)
 
@@ -27,6 +24,24 @@ def _coerce_path_value(value: Path | str | None, default: str) -> Path:
         return value
     value = value.strip()
     return Path(value or default)
+
+
+class NtfySettings(BaseSettings):
+    """Minimal settings required for ntfy service access."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    server: str = Field(
+        default="https://ntfy.sh",
+        validation_alias=AliasChoices("NTFY_SERVER"),
+    )
+    topic: str = Field(validation_alias=AliasChoices("NTFY_TOPIC"))
 
 
 class TelegramSettings(BaseSettings):
@@ -56,10 +71,6 @@ class MonitorSettings(BaseSettings):
 
     token: str = Field(validation_alias=AliasChoices("TELEGRAM_TOKEN"))
     chat_id: str = Field(validation_alias=AliasChoices("TELEGRAM_CHAT_ID"))
-    count_file: Path = Field(
-        default=Path(DEFAULT_COUNT_FILE),
-        validation_alias=AliasChoices("P24_COUNT_FILE"),
-    )
     payload_file: Path = Field(
         default=Path(DEFAULT_PAYLOAD_FILE),
         validation_alias=AliasChoices("P24_PAYLOAD_FILE"),
@@ -80,23 +91,10 @@ class MonitorSettings(BaseSettings):
         default="INFO",
         validation_alias=AliasChoices("P24_LOG_LEVEL"),
     )
-    listing_file: Path = Field(
-        default=Path(DEFAULT_LISTING_FILE),
-        validation_alias=AliasChoices("P24_LISTING_FILE"),
+    state_file: Path = Field(
+        default=Path(DEFAULT_STATE_FILE),
+        validation_alias=AliasChoices("P24_STATE_FILE"),
     )
-    previous_listing_file: Path = Field(
-        default=Path(DEFAULT_PREVIOUS_LISTING_FILE),
-        validation_alias=AliasChoices("P24_LISTING_PREVIOUS_FILE"),
-    )
-    new_listing_file: Path = Field(
-        default=Path(DEFAULT_NEW_LISTING_FILE),
-        validation_alias=AliasChoices("P24_NEW_LISTING_FILE"),
-    )
-
-    @field_validator("count_file", mode="before")
-    @classmethod
-    def _coerce_count_file(cls, value: Path | str | None) -> Path:
-        return _coerce_path_value(value, DEFAULT_COUNT_FILE)
 
     @field_validator("payload_file", mode="before")
     @classmethod
@@ -120,17 +118,7 @@ class MonitorSettings(BaseSettings):
     def _normalise_log_level(cls, value: str) -> str:
         return value.upper()
 
-    @field_validator("listing_file", mode="before")
+    @field_validator("state_file", mode="before")
     @classmethod
-    def _coerce_listing_file(cls, value: Path | str | None) -> Path:
-        return _coerce_path_value(value, DEFAULT_LISTING_FILE)
-
-    @field_validator("previous_listing_file", mode="before")
-    @classmethod
-    def _coerce_previous_listing_file(cls, value: Path | str | None) -> Path:
-        return _coerce_path_value(value, DEFAULT_PREVIOUS_LISTING_FILE)
-
-    @field_validator("new_listing_file", mode="before")
-    @classmethod
-    def _coerce_new_listing_file(cls, value: Path | str | None) -> Path:
-        return _coerce_path_value(value, DEFAULT_NEW_LISTING_FILE)
+    def _coerce_state_file(cls, value: Path | str | None) -> Path:
+        return _coerce_path_value(value, DEFAULT_STATE_FILE)

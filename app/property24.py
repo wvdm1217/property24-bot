@@ -4,21 +4,17 @@ from __future__ import annotations
 
 import math
 import re
-from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 from urllib.parse import urlencode
 
 import requests
 
 from app.logger import get_logger
+from app.state import DuckDBStateStore
 
 BASE_URL = "https://www.property24.com"
 ADVANCED_SEARCH_PATH = "/to-rent/advanced-search/results"
 PAGE_SIZE = 20
-
-DEFAULT_LISTING_FILE = Path("listing.txt")
-DEFAULT_PREVIOUS_FILE = Path("old.txt")
-DEFAULT_NEW_FILE = Path("new.txt")
 
 # Mapping of Property24 property type identifiers to query parameter values.
 PROPERTY_CATEGORY_MAP = {
@@ -270,56 +266,14 @@ def fetch_listing_urls(
     return urls
 
 
-def _read_urls(path: Path) -> list[str]:
-    try:
-        content = path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return []
-    return [line.strip() for line in content.splitlines() if line.strip()]
-
-
-def _write_urls(path: Path, urls: Sequence[str]) -> None:
-    if path.parent and path.parent != Path(""):
-        path.parent.mkdir(parents=True, exist_ok=True)
-    text = "\n".join(urls)
-    if text:
-        text = f"{text}\n"
-    path.write_text(text, encoding="utf-8")
-
-
 class ListingTracker:
     """Track listing URLs across runs and identify new entries."""
 
-    def __init__(
-        self,
-        *,
-        listing_file: Path = DEFAULT_LISTING_FILE,
-        previous_file: Path = DEFAULT_PREVIOUS_FILE,
-        new_file: Path = DEFAULT_NEW_FILE,
-    ) -> None:
-        self.listing_file = listing_file
-        self.previous_file = previous_file
-        self.new_file = new_file
+    def __init__(self, state_store: DuckDBStateStore) -> None:
+        self.state_store = state_store
 
     def load_previous(self) -> list[str]:
-        return _read_urls(self.listing_file)
+        return self.state_store.get_current_listings()
 
     def record(self, urls: Sequence[str]) -> list[str]:
-        previous_urls = self.load_previous()
-        previous_set = set(previous_urls)
-
-        if previous_urls:
-            _write_urls(self.previous_file, previous_urls)
-        elif self.previous_file.exists():
-            self.previous_file.write_text("", encoding="utf-8")
-
-        _write_urls(self.listing_file, urls)
-
-        new_urls = [url for url in urls if url not in previous_set]
-
-        if new_urls:
-            _write_urls(self.new_file, new_urls)
-        elif self.new_file.exists():
-            self.new_file.write_text("", encoding="utf-8")
-
-        return new_urls
+        return self.state_store.update_current_listings(urls)

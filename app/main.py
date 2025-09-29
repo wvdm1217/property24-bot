@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from app.config import MonitorSettings
 from app.logger import configure_logging, get_logger
 from app.property24 import ListingTracker, fetch_listing_urls
+from app.state import DuckDBStateStore
 from app.telegram import send_message
 
 PROPERTY_COUNTER_URL = "https://www.property24.com/search/counter"
@@ -38,34 +39,6 @@ def load_search_payload(path: Path) -> Mapping[str, object]:
         raise RuntimeError("Payload file must contain a JSON object")
 
     return payload
-
-
-def read_previous_count(count_file: Path) -> int:
-    """Load the previous count from disk, initialising the file if needed."""
-
-    try:
-        content = count_file.read_text(encoding="utf-8").strip()
-        if not content:
-            raise ValueError("empty content")
-        return int(content)
-    except FileNotFoundError:
-        logger.info(
-            "Count file %s not found. Initialising with 0.",
-            count_file,
-        )
-    except ValueError:
-        logger.warning(
-            "Count file %s contained invalid data. Resetting to 0.", count_file
-        )
-
-    count_file.write_text("0\n", encoding="utf-8")
-    return 0
-
-
-def write_count(count_file: Path, value: int) -> None:
-    """Persist the latest count to disk."""
-
-    count_file.write_text(f"{value}\n", encoding="utf-8")
 
 
 def fetch_property_count(
@@ -98,12 +71,11 @@ def monitor_property_count(
 ) -> None:
     """Monitor the property count and notify when new listings appear."""
 
-    previous_count = read_previous_count(settings.count_file)
-    tracker = ListingTracker(
-        listing_file=settings.listing_file,
-        previous_file=settings.previous_listing_file,
-        new_file=settings.new_listing_file,
-    )
+    state_store = DuckDBStateStore(path=settings.state_file)
+    state_store.ensure_file()
+
+    previous_count = state_store.get_property_count()
+    tracker = ListingTracker(state_store=state_store)
     logger.info(
         "Starting monitor for %s (previous count: %s)",
         settings.location_name,
@@ -121,7 +93,7 @@ def monitor_property_count(
 
             if current_count != previous_count:
                 logger.info("Property count changed: %s", current_count)
-                write_count(settings.count_file, current_count)
+                state_store.set_property_count(current_count)
 
                 listing_urls: list[str] = []
                 newly_added_urls: list[str] = []

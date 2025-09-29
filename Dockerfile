@@ -1,6 +1,8 @@
-FROM alpine:3.22
+FROM debian:bookworm-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /uvx /bin/
+
+RUN apt-get update && apt-get install -y build-essential cmake
 
 # Install the project into `/app`
 WORKDIR /app

@@ -1,9 +1,9 @@
-from pathlib import Path
 from urllib.parse import urlencode
 
 import pytest
 
 from app.property24 import BASE_URL, ListingTracker, fetch_listing_urls
+from app.state import DuckDBStateStore
 
 
 class DummyResponse:
@@ -95,31 +95,25 @@ def test_fetch_listing_urls_uses_advanced_search_for_multiple_locations() -> Non
     ]
 
 
-def test_listing_tracker_records_new_urls(tmp_path: Path) -> None:
-    listing_file = tmp_path / "listing.txt"
-    previous_file = tmp_path / "old.txt"
-    new_file = tmp_path / "new.txt"
-
-    tracker = ListingTracker(
-        listing_file=listing_file,
-        previous_file=previous_file,
-        new_file=new_file,
-    )
+def test_listing_tracker_records_new_urls(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    state_path = tmp_path_factory.mktemp("state") / "state.duckdb"
+    state_store = DuckDBStateStore(path=state_path)
+    tracker = ListingTracker(state_store=state_store)
 
     first_urls = ["https://example.com/1", "https://example.com/2"]
     recorded_first = tracker.record(first_urls)
 
     assert recorded_first == first_urls
-    assert listing_file.read_text(encoding="utf-8").strip().splitlines() == first_urls
-    assert new_file.read_text(encoding="utf-8").strip().splitlines() == first_urls
-    assert not previous_file.exists()
+    assert state_store.get_current_listings() == first_urls
+    assert state_store.get_new_listings() == first_urls
+    assert state_store.get_previous_listings() == []
 
     second_urls = ["https://example.com/2", "https://example.com/3"]
     recorded_second = tracker.record(second_urls)
 
     assert recorded_second == ["https://example.com/3"]
-    assert listing_file.read_text(encoding="utf-8").strip().splitlines() == second_urls
-    assert new_file.read_text(encoding="utf-8").strip().splitlines() == [
-        "https://example.com/3"
-    ]
-    assert previous_file.read_text(encoding="utf-8").strip().splitlines() == first_urls
+    assert state_store.get_current_listings() == second_urls
+    assert state_store.get_new_listings() == ["https://example.com/3"]
+    assert state_store.get_previous_listings() == first_urls
