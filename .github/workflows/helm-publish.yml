@@ -51,7 +51,7 @@ jobs:
 
       - name: Push Helm chart to GHCR
         run: |
-          helm push .helm-charts/${{ env.CHART_NAME }}-${{ steps.chart_version.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}
+          helm push .helm-charts/${{ env.CHART_NAME }}-${{ steps.chart_version.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_NAME }}-chart
 
       - name: Generate chart installation instructions
         run: |
@@ -59,13 +59,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Chart:** ${{ env.CHART_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.chart_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Registry:** ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_NAME }}-chart" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### Installation Instructions" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "# Install the chart" >> $GITHUB_STEP_SUMMARY
-          echo "helm install ${{ env.CHART_NAME }} oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_NAME }} --version ${{ steps.chart_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "helm install ${{ env.CHART_NAME }} oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_NAME }}-chart --version ${{ steps.chart_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# Or upgrade if already installed" >> $GITHUB_STEP_SUMMARY
-          echo "helm upgrade --install ${{ env.CHART_NAME }} oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_NAME }} --version ${{ steps.chart_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "helm upgrade --install ${{ env.CHART_NAME }} oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_NAME }}-chart --version ${{ steps.chart_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
