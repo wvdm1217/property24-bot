@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 import time
 from pathlib import Path
@@ -12,7 +13,7 @@ import requests
 from pydantic import ValidationError
 
 from app.config import MonitorSettings
-from app.logger import configure_logging, get_logger
+from app.logger import configure_logging
 from app.property24 import ListingTracker, fetch_listing_urls
 from app.state import DuckDBStateStore
 from app.telegram import send_message
@@ -20,8 +21,7 @@ from app.telegram import send_message
 PROPERTY_COUNTER_URL = "https://www.property24.com/search/counter"
 TELEGRAM_SEND_MESSAGE_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def load_search_payload(path: Path) -> Mapping[str, object]:
@@ -161,7 +161,6 @@ def main() -> None:
         raise SystemExit(1) from exc
 
     configure_logging(settings.log_level)
-    logger.setLevel(settings.log_level)
 
     try:
         payload = load_search_payload(settings.payload_file)

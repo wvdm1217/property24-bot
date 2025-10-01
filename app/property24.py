@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from typing import Iterable, Mapping, Sequence
@@ -9,7 +10,6 @@ from urllib.parse import urlencode
 
 import requests
 
-from app.logger import get_logger
 from app.state import DuckDBStateStore
 
 BASE_URL = "https://www.property24.com"
@@ -35,8 +35,7 @@ PROPERTY_CATEGORY_MAP = {
 LISTING_NUMBER_PATTERN = re.compile(r'data-listing-number="(\d+)"')
 LISTING_HREF_PATTERN = re.compile(r'href="(?P<path>/to-rent/[^"?#]+/(?P<number>\d+))"')
 
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _slugify(value: str) -> str:

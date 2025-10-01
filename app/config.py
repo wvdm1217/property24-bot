@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from app.logger import get_logger
 
 DEFAULT_PAYLOAD_FILE = "data/payload.json"
 DEFAULT_POLL_INTERVAL = 60
 MIN_POLL_INTERVAL = 10
 DEFAULT_STATE_FILE = "data/state.duckdb"
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _coerce_path_value(value: Path | str | None, default: str) -> Path:

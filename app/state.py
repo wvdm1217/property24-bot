@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Iterable, Sequence
 
 import duckdb
 
-from app.logger import get_logger
-
 DEFAULT_STATE_FILE = Path("data/state.duckdb")
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DuckDBStateStore:

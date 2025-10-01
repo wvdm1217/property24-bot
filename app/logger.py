@@ -3,33 +3,34 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+import sys
 
-_LOGGER_NAME = "property24"
-_CONFIGURED = False
-
-
-def configure_logging(level: str = "INFO") -> logging.Logger:
-    """Configure and return the application logger."""
-
-    global _CONFIGURED
-
-    if not _CONFIGURED:
-        logging.basicConfig(
-            level=level,
-            format="%(asctime)s %(levelname)s %(message)s",
-        )
-        _CONFIGURED = True
-
-    logger = logging.getLogger(_LOGGER_NAME)
-    logger.setLevel(level)
-    return logger
+_logging_configured = False
 
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
-    """Retrieve a logger instance, defaulting to the application logger."""
+def configure_logging(level: str = "INFO") -> None:
+    """Configure logging for the entire application.
 
-    if name is None:
-        return logging.getLogger(_LOGGER_NAME)
-    return logging.getLogger(name)
+    Should be called once at application startup, before any loggers are created.
+    Configures the root logger to use a consistent format and level.
 
+    Args:
+        level: Logging level as a string (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    """
+    global _logging_configured
+
+    if _logging_configured:
+        return
+
+    # Convert string level to logging constant
+    numeric_level = getattr(logging, level.upper(), logging.INFO)
+
+    # Configure root logger - this affects all loggers in the hierarchy
+    logging.basicConfig(
+        level=numeric_level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        stream=sys.stderr,
+    )
+
+    _logging_configured = True

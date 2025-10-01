@@ -1,11 +1,15 @@
 import json
+import logging
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 def send_message(token: str, chat_id: str, text: str) -> None:
     """Send a message via the Telegram Bot API."""
 
+    logger.info("Sending message to chat_id %s: %s", chat_id, text)
     payload = {
         "chat_id": chat_id,
         "text": text,
@@ -15,14 +19,14 @@ def send_message(token: str, chat_id: str, text: str) -> None:
     response = requests.post(
         url, data=data, headers={"Content-Type": "application/json"}
     )
-
-    print(f"Sending message to chat_id {chat_id}: {text}")
-    print(response.status_code, response.text)
+    logger.debug("Response: %s %s", response.status_code, response.text)
 
 
 if __name__ == "__main__":
     from app.config import MonitorSettings
+    from app.logger import configure_logging
 
+    configure_logging("INFO")
     settings = MonitorSettings()
 
     send_message(
