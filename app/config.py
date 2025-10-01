@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_PAYLOAD_FILE = "data/payload.json"
@@ -68,8 +68,32 @@ class MonitorSettings(BaseSettings):
         case_sensitive=False,
     )
 
-    token: str = Field(validation_alias=AliasChoices("TELEGRAM_TOKEN"))
-    chat_id: str = Field(validation_alias=AliasChoices("TELEGRAM_CHAT_ID"))
+    # Notification method: 'ntfy' or 'telegram'
+    notification_method: str = Field(
+        default="ntfy",
+        validation_alias=AliasChoices("P24_NOTIFICATION_METHOD"),
+    )
+
+    # Ntfy settings
+    ntfy_server: str = Field(
+        default="https://ntfy.sh",
+        validation_alias=AliasChoices("NTFY_SERVER"),
+    )
+    ntfy_topic: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("NTFY_TOPIC"),
+    )
+
+    # Telegram settings (optional)
+    telegram_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TELEGRAM_TOKEN"),
+    )
+    telegram_chat_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TELEGRAM_CHAT_ID"),
+    )
+
     payload_file: Path = Field(
         default=Path(DEFAULT_PAYLOAD_FILE),
         validation_alias=AliasChoices("P24_PAYLOAD_FILE"),
@@ -121,3 +145,30 @@ class MonitorSettings(BaseSettings):
     @classmethod
     def _coerce_state_file(cls, value: Path | str | None) -> Path:
         return _coerce_path_value(value, DEFAULT_STATE_FILE)
+
+    @model_validator(mode="after")
+    def _validate_notification_settings(self) -> "MonitorSettings":
+        """Validate that required fields are present based on notification method."""
+        method = self.notification_method.lower()
+
+        if method == "ntfy":
+            if not self.ntfy_topic:
+                raise ValueError(
+                    "NTFY_TOPIC is required when using ntfy notification method"
+                )
+        elif method == "telegram":
+            if not self.telegram_token:
+                raise ValueError(
+                    "TELEGRAM_TOKEN is required when using telegram notification method"
+                )
+            if not self.telegram_chat_id:
+                raise ValueError(
+                    "TELEGRAM_CHAT_ID is required when using telegram "
+                    "notification method"
+                )
+        else:
+            raise ValueError(
+                f"Invalid notification method: {method}. Must be 'ntfy' or 'telegram'"
+            )
+
+        return self

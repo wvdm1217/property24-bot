@@ -14,14 +14,35 @@ from pydantic import ValidationError
 
 from app.config import MonitorSettings
 from app.logger import configure_logging
+from app.ntfy import send_message as send_ntfy_message
 from app.property24 import ListingTracker, fetch_listing_urls
 from app.state import DuckDBStateStore
-from app.telegram import send_message
+from app.telegram import send_message as send_telegram_message
 
 PROPERTY_COUNTER_URL = "https://www.property24.com/search/counter"
 TELEGRAM_SEND_MESSAGE_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
 logger = logging.getLogger(__name__)
+
+
+def send_notification(settings: MonitorSettings, message: str) -> None:
+    """Send a notification using the configured notification method."""
+    method = settings.notification_method.lower()
+
+    if method == "ntfy":
+        send_ntfy_message(
+            server=settings.ntfy_server,
+            topic=settings.ntfy_topic or "",
+            message=message,
+        )
+    elif method == "telegram":
+        send_telegram_message(
+            token=settings.telegram_token or "",
+            chat_id=settings.telegram_chat_id or "",
+            text=message,
+        )
+    else:
+        logger.error("Unknown notification method: %s", method)
 
 
 def load_search_payload(path: Path) -> Mapping[str, object]:
@@ -128,14 +149,12 @@ def monitor_property_count(
 
                     message = "\n".join(message_lines)
                     try:
-                        send_message(
-                            token=settings.token,
-                            chat_id=settings.chat_id,
-                            text=message,
+                        send_notification(settings, message)
+                        logger.info(
+                            "Notification sent via %s", settings.notification_method
                         )
-                        logger.info("Telegram notification sent")
                     except Exception as e:
-                        logger.error("Failed to send Telegram message: %s", e)
+                        logger.error("Failed to send notification: %s", e)
 
                 previous_count = current_count
             else:

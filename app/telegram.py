@@ -29,8 +29,11 @@ if __name__ == "__main__":
     configure_logging("INFO")
     settings = MonitorSettings()
 
+    if not settings.telegram_token or not settings.telegram_chat_id:
+        raise RuntimeError("TELEGRAM_TOKEN and TELEGRAM_CHAT_ID must be set")
+
     send_message(
-        token=settings.token,
-        chat_id=settings.chat_id,
+        token=settings.telegram_token,
+        chat_id=settings.telegram_chat_id,
         text="Hello, World!",
     )
