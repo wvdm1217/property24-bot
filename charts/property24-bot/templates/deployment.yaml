@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "property24-bot.fullname" . }}
+  labels:
+    {{- include "property24-bot.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "property24-bot.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "property24-bot.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "property24-bot.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: P24_NOTIFICATION_METHOD
+              value: {{ .Values.notificationMethod | quote }}
+            {{- if eq .Values.notificationMethod "ntfy" }}
+            - name: NTFY_SERVER
+              value: {{ .Values.ntfy.server | quote }}
+            - name: NTFY_TOPIC
+              value: {{ .Values.ntfy.topic | quote }}
+            {{- else if eq .Values.notificationMethod "telegram" }}
+            - name: TELEGRAM_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.telegram.tokenSecret }}
+                  key: token
+            - name: TELEGRAM_CHAT_ID
+              value: {{ .Values.telegram.chatId | quote }}
+            {{- end }}
+            - name: P24_POLL_INTERVAL
+              value: {{ .Values.app.pollInterval | quote }}
+            - name: P24_LOCATION_NAME
+              value: {{ .Values.app.locationName | quote }}
+            - name: P24_RUN_ONCE
+              value: {{ .Values.app.runOnce | quote }}
+            - name: P24_LOG_LEVEL
+              value: {{ .Values.app.logLevel | quote }}
+            - name: P24_PAYLOAD_FILE
+              value: {{ .Values.app.payloadFile | quote }}
+            - name: P24_STATE_FILE
+              value: {{ .Values.app.stateFile | quote }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- if .Values.payload.useConfigMap }}
+            - name: payload
+              mountPath: /app/data/payload.json
+              subPath: payload.json
+              readOnly: true
+            {{- else if .Values.payload.usePersistentVolume }}
+            - name: payload
+              mountPath: /app/data/payload.json
+              subPath: payload.json
+              readOnly: true
+            {{- end }}
+            {{- if .Values.persistence.enabled }}
+            - name: state
+              mountPath: /app/data
+            {{- end }}
+      volumes:
+        {{- if .Values.payload.useConfigMap }}
+        - name: payload
+          configMap:
+            name: {{ .Values.payload.configMapName }}
+        {{- else if .Values.payload.usePersistentVolume }}
+        - name: payload
+          persistentVolumeClaim:
+            claimName: {{ .Values.payload.persistentVolumeClaim }}
+        {{- end }}
+        {{- if .Values.persistence.enabled }}
+        - name: state
+          persistentVolumeClaim:
+            claimName: {{ include "property24-bot.fullname" . }}-state
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

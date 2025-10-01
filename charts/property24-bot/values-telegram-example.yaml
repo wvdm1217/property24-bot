@@ -1,0 +1,40 @@
+# Example values for Property24 Bot with Telegram notifications
+# Copy this file and customize it for your deployment:
+#   helm install my-bot ./property24-bot -f my-values.yaml
+
+# Notification Configuration (Telegram method)
+notificationMethod: telegram
+telegram:
+  # REQUIRED: Create a secret first with:
+  # kubectl create secret generic telegram-secret --from-literal=token=YOUR_BOT_TOKEN
+  tokenSecret: "telegram-secret"
+  chatId: "123456789"  # REQUIRED: Change to your chat ID!
+
+# Application Configuration
+app:
+  pollInterval: 60
+  locationName: "Stellenbosch"
+  logLevel: "INFO"
+
+# Image Configuration
+# Update this after building and pushing your Docker image
+image:
+  repository: property24-bot  # Change to your registry/image
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+# Optional: Enable persistence for state database
+persistence:
+  enabled: false
+  # enabled: true
+  # size: 1Gi
+  # storageClass: ""
+
+# Optional: Set resource limits
+resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi

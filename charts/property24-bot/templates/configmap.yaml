@@ -1,0 +1,13 @@
+{{- if .Values.payload.useConfigMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.payload.configMapName }}
+  labels:
+    {{- include "property24-bot.labels" . | nindent 4 }}
+data:
+  payload.json: |
+    # Add your payload.json content here
+    # You can override this by creating the ConfigMap manually
+    {}
+{{- end }}

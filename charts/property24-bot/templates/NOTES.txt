@@ -1,0 +1,25 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your Property24 bot has been deployed.
+
+Chart version: {{ .Chart.Version }}
+App version: {{ .Chart.AppVersion }}
+
+To check the status of your deployment:
+
+  kubectl get pods -l "app.kubernetes.io/name={{ include "property24-bot.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+To view the logs:
+
+  kubectl logs -l "app.kubernetes.io/name={{ include "property24-bot.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -f
+
+Notification method: {{ .Values.notificationMethod }}
+{{- if eq .Values.notificationMethod "ntfy" }}
+- Ntfy server: {{ .Values.ntfy.server }}
+- Ntfy topic: {{ .Values.ntfy.topic }}
+{{- else if eq .Values.notificationMethod "telegram" }}
+- Telegram chat ID: {{ .Values.telegram.chatId }}
+{{- end }}
+
+Poll interval: {{ .Values.app.pollInterval }} seconds
+Location: {{ .Values.app.locationName }}
