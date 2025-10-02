@@ -68,6 +68,20 @@ The following table lists the configurable parameters of the Property24 Bot char
 | `app.payloadFile` | Path to payload file | `data/payload.json` |
 | `app.stateFile` | Path to state database file | `data/state.duckdb` |
 
+### Metrics Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `metrics.enabled` | Enable Prometheus metrics endpoint | `true` |
+| `metrics.port` | Port for metrics server | `8000` |
+| `metrics.service.type` | Service type for metrics endpoint | `ClusterIP` |
+| `metrics.service.port` | Service port for metrics | `8000` |
+| `metrics.service.annotations` | Annotations for metrics service | `{}` |
+| `metrics.serviceMonitor.enabled` | Enable ServiceMonitor (requires Prometheus Operator) | `false` |
+| `metrics.serviceMonitor.interval` | Prometheus scrape interval | `30s` |
+| `metrics.serviceMonitor.scrapeTimeout` | Prometheus scrape timeout | `10s` |
+| `metrics.serviceMonitor.labels` | Additional labels for ServiceMonitor | `{}` |
+
 ### Storage Configuration
 
 | Parameter | Description | Default |
@@ -143,6 +157,51 @@ Then install:
 helm install my-property24-bot ./property24-bot -f my-values.yaml
 ```
 
+### Enable Prometheus metrics with ServiceMonitor
+
+For clusters with Prometheus Operator installed:
+
+```bash
+helm install my-property24-bot ./property24-bot \
+  --set ntfy.topic=my-topic \
+  --set metrics.enabled=true \
+  --set metrics.serviceMonitor.enabled=true \
+  --set metrics.serviceMonitor.labels.prometheus=kube-prometheus
+```
+
+Or in a values file:
+
+```yaml
+notificationMethod: ntfy
+ntfy:
+  topic: my-unique-topic
+
+metrics:
+  enabled: true
+  port: 8000
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels:
+      prometheus: kube-prometheus
+```
+
+### Access metrics endpoint
+
+When metrics are enabled, you can access the metrics endpoint:
+
+```bash
+# Port-forward to the metrics port
+kubectl port-forward svc/my-property24-bot-metrics 8000:8000
+
+# Access metrics
+curl http://localhost:8000/metrics
+
+# Health check
+curl http://localhost:8000/health
+```
+
 ## Uninstalling the Chart
 
 ```bash
@@ -174,3 +233,70 @@ kubectl describe pod -l "app.kubernetes.io/name=property24-bot"
 ```bash
 helm get values my-property24-bot
 ```
+
+## Monitoring
+
+### Prometheus Metrics
+
+The chart exposes Prometheus metrics when `metrics.enabled` is `true` (default). The following metrics are available:
+
+- `property24_current_count` - Current number of properties being tracked
+- `property24_count_changes_total` - Total property count changes
+- `property24_listings_new_total` - Total new listings discovered
+- `property24_fetch_errors_total` - Total API fetch errors
+- `property24_notifications_sent_total` - Total notifications sent
+- `property24_poll_duration_seconds` - Polling duration histogram
+- `property24_app_info` - Application metadata
+- `property24_app_start_time_seconds` - Application start timestamp
+
+### Prometheus Operator Integration
+
+If you have Prometheus Operator installed, enable the ServiceMonitor:
+
+```yaml
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    labels:
+      prometheus: kube-prometheus  # Match your Prometheus selector
+```
+
+The ServiceMonitor will be automatically discovered by Prometheus Operator and start scraping metrics.
+
+### Manual Prometheus Configuration
+
+If not using Prometheus Operator, add the following to your Prometheus configuration:
+
+```yaml
+scrape_configs:
+  - job_name: 'property24-bot'
+    kubernetes_sd_configs:
+      - role: service
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_label_app_kubernetes_io_name]
+        regex: property24-bot
+        action: keep
+      - source_labels: [__meta_kubernetes_service_label_app_kubernetes_io_component]
+        regex: metrics
+        action: keep
+```
+
+### Example Grafana Queries
+
+Monitor current property count:
+```promql
+property24_current_count{location="Stellenbosch"}
+```
+
+New listings rate per hour:
+```promql
+rate(property24_listings_new_total[1h]) * 3600
+```
+
+Notification success rate:
+```promql
+rate(property24_notifications_sent_total{status="success"}[5m])
+  / rate(property24_notifications_sent_total[5m])
+```
+

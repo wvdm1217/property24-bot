@@ -37,6 +37,21 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
+# Metrics Configuration
+metrics:
+  enabled: true
+  port: 8000
+  service:
+    type: ClusterIP
+    port: 8000
+  # Enable ServiceMonitor if using Prometheus Operator
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    # labels:
+    #   prometheus: kube-prometheus
+
 # Volume mount for payload.json
 payload:
   # If you want to use a ConfigMap for the payload
