@@ -92,7 +92,7 @@ spec:
         {{- if .Values.payload.useConfigMap }}
         - name: payload
           configMap:
-            name: {{ .Values.payload.configMapName }}
+            name: {{ include "property24-bot.fullname" . }}-payload
         {{- else if .Values.payload.usePersistentVolume }}
         - name: payload
           persistentVolumeClaim:

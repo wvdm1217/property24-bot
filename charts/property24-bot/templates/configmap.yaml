@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.payload.configMapName }}
+  name: {{ include "property24-bot.fullname" . }}-payload
   labels:
     {{- include "property24-bot.labels" . | nindent 4 }}
 data:
