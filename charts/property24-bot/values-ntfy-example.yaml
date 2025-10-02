@@ -23,10 +23,10 @@ image:
 
 # Optional: Enable persistence for state database
 persistence:
-  enabled: false
-  # enabled: true
-  # size: 1Gi
-  # storageClass: ""
+  # enabled: false
+  enabled: true
+  size: 1Gi
+  storageClass: ""
 
 # Optional: Set resource limits
 resources: {}
@@ -36,3 +36,84 @@ resources: {}
   # requests:
   #   cpu: 100m
   #   memory: 128Mi
+
+# Volume mount for payload.json
+payload:
+  # If you want to use a ConfigMap for the payload
+  useConfigMap: true
+  configMapName: ""
+  
+  # If you want to mount from a PVC or hostPath
+  usePersistentVolume: false
+  persistentVolumeClaim: ""
+  jsonContent: |
+    {
+      "bedrooms": 0,
+      "bathrooms": 0,
+      "availability": 0,
+      "rentalRates": [],
+      "sizeFrom": {
+          "isCustom": false,
+          "value": null
+      },
+      "sizeTo": {
+          "isCustom": false,
+          "value": null
+      },
+      "erfSizeFrom": {
+          "isCustom": false,
+          "value": null
+      },
+      "erfSizeTo": {
+          "isCustom": false,
+          "value": null
+      },
+      "floorSizeFrom": {
+          "isCustom": false,
+          "value": null
+      },
+      "floorSizeTo": {
+          "isCustom": false,
+          "value": null
+      },
+      "parkingType": 1,
+      "parkingSpaces": 0,
+      "hasFlatlet": null,
+      "hasGarden": null,
+      "hasPool": null,
+      "furnishedStatus": 2,
+      "isPetFriendly": null,
+      "isRepossessed": null,
+      "isRetirement": null,
+      "isInSecurityEstate": null,
+      "onAuction": null,
+      "onShow": null,
+      "propertyTypes": [
+          4,
+          5,
+          6
+      ],
+      "autoCompleteItems": [
+          {
+              "id": 459,
+              "name": "Stellenbosch",
+              "parentId": null,
+              "parentName": "Western Cape",
+              "type": 2,
+              "source": 0,
+              "normalizedName": "stellenbosch"
+          }
+      ],
+      "searchContextType": 1,
+      "priceFrom": {
+          "isCustom": false,
+          "value": null
+      },
+      "priceTo": {
+          "isCustom": false,
+          "value": null
+      },
+      "searchType": 1,
+      "sortOrder": 0,
+      "developmentSubType": 0
+    }
