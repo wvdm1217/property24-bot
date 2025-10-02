@@ -119,6 +119,16 @@ class MonitorSettings(BaseSettings):
         validation_alias=AliasChoices("P24_STATE_FILE"),
     )
 
+    # Metrics server settings
+    metrics_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("P24_METRICS_ENABLED"),
+    )
+    metrics_port: int = Field(
+        default=8000,
+        validation_alias=AliasChoices("P24_METRICS_PORT"),
+    )
+
     @field_validator("payload_file", mode="before")
     @classmethod
     def _coerce_payload_file(cls, value: Path | str | None) -> Path:

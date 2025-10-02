@@ -14,8 +14,18 @@ from pydantic import ValidationError
 
 from app.config import MonitorSettings
 from app.logger import configure_logging
+from app.metrics import (
+    app_info,
+    fetch_errors_total,
+    listings_new_total,
+    notifications_sent_total,
+    poll_duration_seconds,
+    property_count_changes,
+    property_count_gauge,
+)
 from app.ntfy import send_message as send_ntfy_message
 from app.property24 import ListingTracker, fetch_listing_urls
+from app.server import start_metrics_server
 from app.state import DuckDBStateStore
 from app.telegram import send_message as send_telegram_message
 
@@ -29,20 +39,28 @@ def send_notification(settings: MonitorSettings, message: str) -> None:
     """Send a notification using the configured notification method."""
     method = settings.notification_method.lower()
 
-    if method == "ntfy":
-        send_ntfy_message(
-            server=settings.ntfy_server,
-            topic=settings.ntfy_topic or "",
-            message=message,
-        )
-    elif method == "telegram":
-        send_telegram_message(
-            token=settings.telegram_token or "",
-            chat_id=settings.telegram_chat_id or "",
-            text=message,
-        )
-    else:
-        logger.error("Unknown notification method: %s", method)
+    try:
+        if method == "ntfy":
+            send_ntfy_message(
+                server=settings.ntfy_server,
+                topic=settings.ntfy_topic or "",
+                message=message,
+            )
+        elif method == "telegram":
+            send_telegram_message(
+                token=settings.telegram_token or "",
+                chat_id=settings.telegram_chat_id or "",
+                text=message,
+            )
+        else:
+            logger.error("Unknown notification method: %s", method)
+            notifications_sent_total.labels(method=method, status="error").inc()
+            return
+
+        notifications_sent_total.labels(method=method, status="success").inc()
+    except Exception as exc:
+        notifications_sent_total.labels(method=method, status="failed").inc()
+        raise exc
 
 
 def load_search_payload(path: Path) -> Mapping[str, object]:
@@ -78,11 +96,13 @@ def fetch_property_count(
     try:
         data = req.json()
     except requests.RequestException as exc:
+        fetch_errors_total.labels(error_type="request_failed").inc()
         raise RuntimeError("Failed to fetch property count") from exc
 
     try:
         return int(data["count"])
     except (KeyError, TypeError, ValueError) as exc:
+        fetch_errors_total.labels(error_type="parse_failed").inc()
         raise RuntimeError("Property count missing in response") from exc
 
 
@@ -103,8 +123,14 @@ def monitor_property_count(
         previous_count,
     )
 
+    # Initialize property count gauge
+    if previous_count is not None:
+        property_count_gauge.labels(location=settings.location_name).set(previous_count)
+
     try:
         while True:
+            poll_start = time.time()
+
             try:
                 current_count = fetch_property_count(payload)
             except RuntimeError as exc:
@@ -112,9 +138,26 @@ def monitor_property_count(
                 time.sleep(settings.poll_interval)
                 continue
 
+            # Update current count gauge
+            property_count_gauge.labels(location=settings.location_name).set(current_count)
+
+            # Record poll duration
+            poll_duration_seconds.labels(location=settings.location_name).observe(
+                time.time() - poll_start
+            )
+
             if current_count != previous_count:
                 logger.info("Property count changed: %s", current_count)
                 state_store.set_property_count(current_count)
+
+                # Track the type of change
+                if previous_count is not None:
+                    change_type = (
+                        "increase" if current_count > previous_count else "decrease"
+                    )
+                    property_count_changes.labels(
+                        location=settings.location_name, change_type=change_type
+                    ).inc()
 
                 listing_urls: list[str] = []
                 newly_added_urls: list[str] = []
@@ -122,6 +165,7 @@ def monitor_property_count(
                     listing_urls = fetch_listing_urls(payload, count=current_count)
                 except RuntimeError as exc:
                     logger.error("Failed to fetch listing URLs: %s", exc)
+                    fetch_errors_total.labels(error_type="listing_fetch_failed").inc()
                 else:
                     newly_added_urls = tracker.record(listing_urls)
                     logger.debug(
@@ -129,6 +173,12 @@ def monitor_property_count(
                         len(listing_urls),
                         len(newly_added_urls),
                     )
+
+                    # Track new listings
+                    if newly_added_urls:
+                        listings_new_total.labels(location=settings.location_name).inc(
+                            len(newly_added_urls)
+                        )
 
                 if current_count > previous_count:
                     message_lines = [
@@ -180,6 +230,15 @@ def main() -> None:
         raise SystemExit(1) from exc
 
     configure_logging(settings.log_level)
+
+    # Start metrics server if enabled
+    if settings.metrics_enabled:
+        start_metrics_server(port=settings.metrics_port)
+        # Set application info metric
+        app_info.labels(
+            version="0.1.0",
+            notification_method=settings.notification_method
+        ).set(1)
 
     try:
         payload = load_search_payload(settings.payload_file)
