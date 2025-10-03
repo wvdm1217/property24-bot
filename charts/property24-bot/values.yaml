@@ -77,6 +77,39 @@ app:
   # State file configuration
   stateFile: "data/state.duckdb"
 
+# Metrics configuration
+metrics:
+  # Enable Prometheus metrics endpoint
+  enabled: true
+  
+  # Port for metrics server
+  port: 8000
+  
+  # Service configuration for metrics endpoint
+  service:
+    type: ClusterIP
+    port: 8000
+    annotations: {}
+      # prometheus.io/scrape: "true"
+      # prometheus.io/port: "8000"
+  
+  # ServiceMonitor configuration (requires Prometheus Operator)
+  serviceMonitor:
+    enabled: false
+    # Scrape interval
+    interval: 30s
+    # Scrape timeout
+    scrapeTimeout: 10s
+    # Additional labels for ServiceMonitor
+    labels: {}
+      # prometheus: kube-prometheus
+    # Additional annotations for ServiceMonitor
+    annotations: {}
+    # Relabeling configs
+    relabelings: []
+    # Metric relabeling configs
+    metricRelabelings: []
+
 # Persistent storage for state
 persistence:
   enabled: false

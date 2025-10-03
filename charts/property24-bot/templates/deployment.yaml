@@ -39,6 +39,12 @@ spec:
           {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+              protocol: TCP
+          {{- end }}
           env:
             - name: P24_NOTIFICATION_METHOD
               value: {{ .Values.notificationMethod | quote }}
@@ -68,6 +74,15 @@ spec:
               value: {{ .Values.app.payloadFile | quote }}
             - name: P24_STATE_FILE
               value: {{ .Values.app.stateFile | quote }}
+            {{- if .Values.metrics.enabled }}
+            - name: P24_METRICS_ENABLED
+              value: "true"
+            - name: P24_METRICS_PORT
+              value: {{ .Values.metrics.port | quote }}
+            {{- else }}
+            - name: P24_METRICS_ENABLED
+              value: "false"
+            {{- end }}
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

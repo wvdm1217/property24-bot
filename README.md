@@ -7,6 +7,7 @@ A Python-based bot that monitors Property24 for new property listings and sends 
 - 🏠 **Property Monitoring**: Continuously monitors Property24 for new listings
 - 📱 **Multiple Notification Methods**: Support for both ntfy and Telegram notifications
 - 💾 **Persistent State**: Uses DuckDB to track seen listings and prevent duplicate notifications
+- 📊 **Prometheus Metrics**: Built-in metrics endpoint for monitoring and observability
 - 🐳 **Docker Support**: Containerized application with optimized build using `uv`
 - ☸️ **Kubernetes Ready**: Production-ready Helm chart for easy deployment
 - ⚙️ **Configurable**: Flexible configuration via environment variables or Pydantic Settings
@@ -257,6 +258,108 @@ The application uses [Pydantic Settings](https://docs.pydantic.dev/latest/concep
 | `P24_LOCATION_NAME` | ❌ | `Stellenbosch` | Location label for alert messages |
 | `P24_RUN_ONCE` | ❌ | `false` | Run once then exit (useful for testing) |
 | `P24_LOG_LEVEL` | ❌ | `INFO` | Logging verbosity: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `P24_METRICS_ENABLED` | ❌ | `true` | Enable Prometheus metrics endpoint |
+| `P24_METRICS_PORT` | ❌ | `8000` | Port for Prometheus metrics HTTP server |
+
+## Metrics and Monitoring
+
+The bot exposes Prometheus-compatible metrics for monitoring and observability. When enabled (default), a metrics endpoint is available at `http://localhost:8000/metrics`.
+
+### Available Metrics
+
+The following metrics are exposed:
+
+| Metric Name | Type | Labels | Description |
+| --- | --- | --- | --- |
+| `property24_current_count` | Gauge | `location` | Current number of properties being tracked |
+| `property24_count_changes_total` | Counter | `location`, `change_type` | Total number of property count changes (increase/decrease) |
+| `property24_listings_new_total` | Counter | `location` | Total number of new listings discovered |
+| `property24_fetch_errors_total` | Counter | `error_type` | Total number of errors fetching property data |
+| `property24_notifications_sent_total` | Counter | `method`, `status` | Total number of notifications sent (success/failed/error) |
+| `property24_poll_duration_seconds` | Histogram | `location` | Duration of property polling operations |
+| `property24_app_info` | Gauge | `version`, `notification_method` | Application information (value is always 1) |
+| `property24_app_start_time_seconds` | Gauge | - | Unix timestamp when the application started |
+
+### Accessing Metrics
+
+**Local Development:**
+```bash
+# Start the bot (metrics server starts automatically)
+uv run python -m app.main
+
+# In another terminal, fetch metrics
+curl http://localhost:8000/metrics
+```
+
+**Docker Deployment:**
+```bash
+# Run container with metrics port exposed
+docker run --env-file .env \
+  -p 8000:8000 \
+  -v "$(pwd)/data/payload.json:/app/data/payload.json:ro" \
+  -v "$(pwd)/data:/app/data" \
+  property24-bot:0.1.0
+
+# Access metrics
+curl http://localhost:8000/metrics
+```
+
+**Kubernetes Deployment:**
+
+The Helm chart automatically configures a ServiceMonitor for Prometheus Operator integration. See the [Helm Chart README](charts/property24-bot/README.md) for details.
+
+### Health Check Endpoint
+
+In addition to metrics, a simple health check endpoint is available:
+
+```bash
+curl http://localhost:8000/health
+# Returns: OK
+```
+
+### Disabling Metrics
+
+To disable the metrics endpoint, set the environment variable:
+```bash
+P24_METRICS_ENABLED=false
+```
+
+### Integration with Prometheus
+
+Add the following to your Prometheus configuration:
+
+```yaml
+scrape_configs:
+  - job_name: 'property24-bot'
+    static_configs:
+      - targets: ['localhost:8000']
+```
+
+For Kubernetes deployments with Prometheus Operator, the Helm chart includes a ServiceMonitor resource that is automatically discovered.
+
+### Example Prometheus Queries
+
+Monitor the current property count:
+```promql
+property24_current_count{location="Stellenbosch"}
+```
+
+Calculate the rate of new listings per hour:
+```promql
+rate(property24_listings_new_total[1h]) * 3600
+```
+
+Check notification success rate:
+```promql
+rate(property24_notifications_sent_total{status="success"}[5m])
+  /
+rate(property24_notifications_sent_total[5m])
+```
+
+View error rates:
+```promql
+rate(property24_fetch_errors_total[5m])
+```
 
 ## Project Structure
 
@@ -265,6 +368,8 @@ property24-bot/
 ├── app/                    # Main application code
 │   ├── main.py            # Entry point and main monitoring loop
 │   ├── config.py          # Pydantic settings configuration
+│   ├── metrics.py         # Prometheus metrics definitions
+│   ├── server.py          # HTTP server for metrics endpoint
 │   ├── property24.py      # Property24 API interaction
 │   ├── state.py           # DuckDB state management
 │   ├── telegram.py        # Telegram notification handler
