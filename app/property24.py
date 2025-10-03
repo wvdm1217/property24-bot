@@ -237,16 +237,38 @@ def fetch_listing_urls(
     try:
         for page in range(1, total_pages + 1):
             page_url = _build_listing_page_url(payload, page)
+
+            # Fetch the page twice to filter out dummy listings
+            # Property24 includes fake listings that change between requests
             try:
-                response = session.get(page_url, timeout=15)
-                response.raise_for_status()
+                response1 = session.get(page_url, timeout=15)
+                response1.raise_for_status()
+                response2 = session.get(page_url, timeout=15)
+                response2.raise_for_status()
             except requests.RequestException as exc:
                 raise RuntimeError(f"Failed to fetch listing page {page}") from exc
 
-            html = response.text
-            numbers = set(LISTING_NUMBER_PATTERN.findall(html))
-            seen_numbers.update(numbers)
-            page_urls = _extract_listing_urls(html, numbers or seen_numbers)
+            # Extract listing numbers from both responses
+            numbers1 = set(LISTING_NUMBER_PATTERN.findall(response1.text))
+            numbers2 = set(LISTING_NUMBER_PATTERN.findall(response2.text))
+
+            # Only use listings that appear in BOTH responses (filter out dummies)
+            common_numbers = numbers1 & numbers2
+
+            if not common_numbers:
+                logger.warning(
+                    "No common listing numbers found on page %s (first=%s, second=%s)",
+                    page,
+                    len(numbers1),
+                    len(numbers2),
+                )
+                # Fall back to second response if no overlap
+                common_numbers = numbers2
+
+            seen_numbers.update(common_numbers)
+
+            # Use the second response HTML for extracting URLs
+            page_urls = _extract_listing_urls(response2.text, common_numbers)
             for url in page_urls:
                 if url not in urls:
                     urls.append(url)

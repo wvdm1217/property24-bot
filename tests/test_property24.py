@@ -24,6 +24,21 @@ class DummySession:
         return DummyResponse(self.response_text)
 
 
+class DummySessionWithVariableResponses:
+    """Session that returns different responses for each call."""
+
+    def __init__(self, responses: list[str]) -> None:
+        self.responses = responses
+        self.call_count = 0
+        self.called_urls: list[str] = []
+
+    def get(self, url: str, timeout: int) -> DummyResponse:
+        self.called_urls.append(url)
+        response_text = self.responses[self.call_count % len(self.responses)]
+        self.call_count += 1
+        return DummyResponse(response_text)
+
+
 @pytest.fixture()
 def sample_payload() -> dict[str, object]:
     return {
@@ -56,7 +71,8 @@ def test_fetch_listing_urls_extracts_unique_links(
         "https://www.property24.com/to-rent/stellenbosch/western-cape/459"
         "/p1?PropertyCategory=House%2CApartmentOrFlat%2CTownhouse"
     )
-    assert session.called_urls == [expected_url]
+    # Expect two requests per page to filter out dummy listings
+    assert session.called_urls == [expected_url, expected_url]
     assert urls == [
         "https://www.property24.com/to-rent/stellenbosch/western-cape/459/12345",
         "https://www.property24.com/to-rent/stellenbosch/western-cape/459/67890",
@@ -89,7 +105,8 @@ def test_fetch_listing_urls_uses_advanced_search_for_multiple_locations() -> Non
     )
     expected_url = f"{BASE_URL}/to-rent/advanced-search/results?{expected_query}"
 
-    assert session.called_urls == [expected_url]
+    # Expect two requests per page to filter out dummy listings
+    assert session.called_urls == [expected_url, expected_url]
     assert urls == [
         f"{BASE_URL}/to-rent/bo-kaap/cape-town/9136/55555",
     ]
@@ -117,3 +134,35 @@ def test_listing_tracker_records_new_urls(
     assert state_store.get_current_listings() == second_urls
     assert state_store.get_new_listings() == ["https://example.com/3"]
     assert state_store.get_previous_listings() == first_urls
+
+
+def test_fetch_listing_urls_filters_out_dummy_listings(
+    sample_payload: dict[str, object],
+) -> None:
+    """Test that only listings appearing in both requests are included."""
+    # First request includes dummy listing 99999
+    first_response = """
+    <div data-listing-number="12345"></div>
+    <a href="/to-rent/stellenbosch/western-cape/459/12345">Listing 12345</a>
+    <div data-listing-number="99999"></div>
+    <a href="/to-rent/stellenbosch/western-cape/459/99999">Dummy 99999</a>
+    """
+
+    # Second request has real listing 12345 but different dummy 88888
+    second_response = """
+    <div data-listing-number="12345"></div>
+    <a href="/to-rent/stellenbosch/western-cape/459/12345">Listing 12345</a>
+    <div data-listing-number="88888"></div>
+    <a href="/to-rent/stellenbosch/western-cape/459/88888">Dummy 88888</a>
+    """
+
+    session = DummySessionWithVariableResponses(
+        responses=[first_response, second_response]
+    )
+
+    urls = fetch_listing_urls(sample_payload, count=2, session=session)  # type: ignore[arg-type]
+
+    # Should only include the listing that appeared in both responses
+    assert urls == [
+        "https://www.property24.com/to-rent/stellenbosch/western-cape/459/12345",
+    ]

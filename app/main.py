@@ -139,7 +139,9 @@ def monitor_property_count(
                 continue
 
             # Update current count gauge
-            property_count_gauge.labels(location=settings.location_name).set(current_count)
+            property_count_gauge.labels(location=settings.location_name).set(
+                current_count
+            )
 
             # Record poll duration
             poll_duration_seconds.labels(location=settings.location_name).observe(
@@ -148,10 +150,33 @@ def monitor_property_count(
 
             if current_count != previous_count:
                 logger.info("Property count changed: %s", current_count)
-                state_store.set_property_count(current_count)
 
-                # Track the type of change
-                if previous_count is not None:
+                # On first run, just initialize state without sending notifications
+                if previous_count is None:
+                    logger.info(
+                        "First run detected - initializing state without notifications"
+                    )
+                    state_store.set_property_count(current_count)
+
+                    # Still fetch and record listings to establish baseline
+                    try:
+                        listing_urls = fetch_listing_urls(payload, count=current_count)
+                        tracker.record(listing_urls)
+                        logger.info(
+                            "Initialized tracking with %s listings", len(listing_urls)
+                        )
+                    except RuntimeError as exc:
+                        logger.error("Failed to fetch listing URLs: %s", exc)
+                        fetch_errors_total.labels(
+                            error_type="listing_fetch_failed"
+                        ).inc()
+
+                    previous_count = current_count
+                else:
+                    # Normal operation: track changes and send notifications
+                    state_store.set_property_count(current_count)
+
+                    # Track the type of change
                     change_type = (
                         "increase" if current_count > previous_count else "decrease"
                     )
@@ -159,54 +184,57 @@ def monitor_property_count(
                         location=settings.location_name, change_type=change_type
                     ).inc()
 
-                listing_urls: list[str] = []
-                newly_added_urls: list[str] = []
-                try:
-                    listing_urls = fetch_listing_urls(payload, count=current_count)
-                except RuntimeError as exc:
-                    logger.error("Failed to fetch listing URLs: %s", exc)
-                    fetch_errors_total.labels(error_type="listing_fetch_failed").inc()
-                else:
-                    newly_added_urls = tracker.record(listing_urls)
-                    logger.debug(
-                        "Recorded %s listings (%s new)",
-                        len(listing_urls),
-                        len(newly_added_urls),
-                    )
-
-                    # Track new listings
-                    if newly_added_urls:
-                        listings_new_total.labels(location=settings.location_name).inc(
-                            len(newly_added_urls)
-                        )
-
-                if current_count > previous_count:
-                    message_lines = [
-                        (
-                            f"New property added in {settings.location_name}. "
-                            f"Count: {current_count}"
-                        )
-                    ]
-
-                    if newly_added_urls:
-                        max_display = 10
-                        display_urls = newly_added_urls[:max_display]
-                        message_lines.append("New listings:")
-                        message_lines.extend(display_urls)
-                        remaining = len(newly_added_urls) - len(display_urls)
-                        if remaining > 0:
-                            message_lines.append(f"...and {remaining} more")
-
-                    message = "\n".join(message_lines)
+                    listing_urls = []
+                    newly_added_urls = []
                     try:
-                        send_notification(settings, message)
-                        logger.info(
-                            "Notification sent via %s", settings.notification_method
+                        listing_urls = fetch_listing_urls(payload, count=current_count)
+                    except RuntimeError as exc:
+                        logger.error("Failed to fetch listing URLs: %s", exc)
+                        fetch_errors_total.labels(
+                            error_type="listing_fetch_failed"
+                        ).inc()
+                    else:
+                        newly_added_urls = tracker.record(listing_urls)
+                        logger.debug(
+                            "Recorded %s listings (%s new)",
+                            len(listing_urls),
+                            len(newly_added_urls),
                         )
-                    except Exception as e:
-                        logger.error("Failed to send notification: %s", e)
 
-                previous_count = current_count
+                        # Track new listings
+                        if newly_added_urls:
+                            listings_new_total.labels(
+                                location=settings.location_name
+                            ).inc(len(newly_added_urls))
+
+                    if current_count > previous_count:
+                        message_lines = [
+                            (
+                                f"New property added in {settings.location_name}. "
+                                f"Count: {current_count}"
+                            )
+                        ]
+
+                        if newly_added_urls:
+                            max_display = 10
+                            display_urls = newly_added_urls[:max_display]
+                            message_lines.append("New listings:")
+                            message_lines.extend(display_urls)
+                            remaining = len(newly_added_urls) - len(display_urls)
+                            if remaining > 0:
+                                message_lines.append(f"...and {remaining} more")
+
+                        message = "\n".join(message_lines)
+                        try:
+                            send_notification(settings, message)
+                            logger.info(
+                                "Notification sent via %s",
+                                settings.notification_method,
+                            )
+                        except Exception as e:
+                            logger.error("Failed to send notification: %s", e)
+
+                    previous_count = current_count
             else:
                 logger.debug("No change in property count: %s", current_count)
 
@@ -236,8 +264,7 @@ def main() -> None:
         start_metrics_server(port=settings.metrics_port)
         # Set application info metric
         app_info.labels(
-            version="0.1.0",
-            notification_method=settings.notification_method
+            version="0.1.0", notification_method=settings.notification_method
         ).set(1)
 
     try:
