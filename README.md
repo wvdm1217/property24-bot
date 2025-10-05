@@ -48,7 +48,7 @@ uv run python -m app.main
 
 1. Build the Docker image:
 ```bash
-docker build -t property24-bot:0.1.0 .
+docker build -t property24-bot .
 ```
 
 2. Run the container:
@@ -56,7 +56,7 @@ docker build -t property24-bot:0.1.0 .
 docker run --env-file .env \
   -v "$(pwd)/data/payload.json:/app/data/payload.json:ro" \
   -v "$(pwd)/data:/app/data" \
-  property24-bot:0.1.0
+  property24-bot
 ```
 
 ### Kubernetes Deployment with Helm
