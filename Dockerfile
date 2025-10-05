@@ -32,6 +32,14 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
 
+# Clean up unnecessary files to reduce image size
+RUN find /app/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /app/.venv -type f -name "*.py[co]" -delete && \
+    find /app/.venv -type d -name "tests" -o -name "test" | xargs rm -rf 2>/dev/null || true && \
+    find /app/.venv -type f -name "*.so" -exec strip --strip-unneeded {} \; 2>/dev/null || true && \
+    find /app/.venv -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true && \
+    find /app/.venv -type d -name "locale" -exec rm -rf {} + 2>/dev/null || true
+
 # Runtime stage - minimal distroless image
 FROM gcr.io/distroless/cc-debian12
 
