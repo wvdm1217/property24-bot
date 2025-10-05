@@ -9,6 +9,25 @@ A Helm chart for deploying the Property24 webscraping bot on Kubernetes.
 
 ## Installing the Chart
 
+### Quick Start with Example Files
+
+This chart includes several example values files for common use cases:
+
+- `values-ntfy-example.yaml` - Basic setup with ntfy notifications
+- `values-telegram-example.yaml` - Setup with Telegram notifications
+- `values-monitoring-example.yaml` - Full monitoring stack with Prometheus ServiceMonitor and Grafana dashboard
+
+To use an example file:
+
+```bash
+# Copy and customize the example
+cp charts/property24-bot/values-monitoring-example.yaml my-values.yaml
+# Edit my-values.yaml with your settings
+nano my-values.yaml
+# Install with the custom values
+helm install my-property24-bot ./property24-bot -f my-values.yaml
+```
+
 ### Using ntfy (default)
 
 ```bash
