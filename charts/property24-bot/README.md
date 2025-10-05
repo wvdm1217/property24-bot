@@ -81,6 +81,9 @@ The following table lists the configurable parameters of the Property24 Bot char
 | `metrics.serviceMonitor.interval` | Prometheus scrape interval | `30s` |
 | `metrics.serviceMonitor.scrapeTimeout` | Prometheus scrape timeout | `10s` |
 | `metrics.serviceMonitor.labels` | Additional labels for ServiceMonitor | `{}` |
+| `metrics.grafanaDashboard.enabled` | Enable Grafana dashboard ConfigMap | `false` |
+| `metrics.grafanaDashboard.labels` | Additional labels for dashboard ConfigMap (e.g., `grafana_dashboard: "1"`) | `{}` |
+| `metrics.grafanaDashboard.annotations` | Annotations for dashboard ConfigMap | `{}` |
 
 ### Storage Configuration
 
@@ -187,6 +190,44 @@ metrics:
       prometheus: kube-prometheus
 ```
 
+### Enable Grafana dashboard with kube-prometheus-stack
+
+For clusters with kube-prometheus-stack installed:
+
+```bash
+helm install my-property24-bot ./property24-bot \
+  --set ntfy.topic=my-topic \
+  --set metrics.enabled=true \
+  --set metrics.serviceMonitor.enabled=true \
+  --set metrics.serviceMonitor.labels.prometheus=kube-prometheus \
+  --set metrics.grafanaDashboard.enabled=true \
+  --set-string metrics.grafanaDashboard.labels.grafana_dashboard="1"
+```
+
+Or in a values file:
+
+```yaml
+notificationMethod: ntfy
+ntfy:
+  topic: my-unique-topic
+
+metrics:
+  enabled: true
+  port: 8000
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels:
+      prometheus: kube-prometheus
+  grafanaDashboard:
+    enabled: true
+    labels:
+      grafana_dashboard: "1"  # Required for auto-discovery
+```
+
+The dashboard will be automatically imported into Grafana if the sidecar is enabled in your kube-prometheus-stack deployment.
+
 ### Access metrics endpoint
 
 When metrics are enabled, you can access the metrics endpoint:
@@ -263,6 +304,39 @@ metrics:
 ```
 
 The ServiceMonitor will be automatically discovered by Prometheus Operator and start scraping metrics.
+
+### Grafana Dashboard
+
+The chart includes a pre-built Grafana dashboard that works with kube-prometheus-stack. To enable it:
+
+```yaml
+metrics:
+  enabled: true
+  grafanaDashboard:
+    enabled: true
+    labels:
+      grafana_dashboard: "1"  # Required for kube-prometheus-stack auto-discovery
+```
+
+The dashboard includes the following visualizations:
+
+- **Current Property Count** - Real-time count of tracked properties
+- **New Listings** - Total new listings discovered
+- **Uptime** - Application uptime tracking
+- **Notification Success Rate** - Gauge showing notification delivery success rate
+- **Property Count Over Time** - Historical trend of property counts
+- **New Listings Rate** - Rate of new property discoveries
+- **Notifications Sent Rate** - Breakdown of notifications by method and status
+- **Fetch Errors Rate** - API error tracking
+- **Poll Duration Percentiles** - Performance metrics (p50, p95, p99)
+- **Property Count Changes** - Rate of property count increases/decreases
+
+The dashboard includes template variables for:
+- **Data Source** - Select your Prometheus data source
+- **Namespace** - Filter by Kubernetes namespace
+- **Location** - Filter by location (e.g., Stellenbosch)
+
+Once deployed, the dashboard will be automatically discovered by Grafana if you're using kube-prometheus-stack with the sidecar enabled.
 
 ### Manual Prometheus Configuration
 
