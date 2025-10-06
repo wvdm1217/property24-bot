@@ -109,6 +109,16 @@ metrics:
     relabelings: []
     # Metric relabeling configs
     metricRelabelings: []
+  
+  # Grafana Dashboard configuration (requires kube-prometheus-stack)
+  grafanaDashboard:
+    enabled: false
+    # Additional labels for dashboard ConfigMap
+    # For kube-prometheus-stack, add: grafana_dashboard: "1"
+    labels: {}
+      # grafana_dashboard: "1"
+    # Additional annotations for dashboard ConfigMap
+    annotations: {}
 
 # Persistent storage for state
 persistence:

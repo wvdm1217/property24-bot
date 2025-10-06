@@ -1,0 +1,117 @@
+# Example values for Property24 Bot with full monitoring stack
+# This example shows how to enable Prometheus ServiceMonitor and Grafana Dashboard
+# for use with kube-prometheus-stack
+#
+# Copy this file and customize it for your deployment:
+#   helm install my-bot ./property24-bot -f my-values.yaml
+
+# Notification Configuration (ntfy method)
+notificationMethod: ntfy
+ntfy:
+  server: "https://ntfy.sh"
+  topic: "your-unique-topic-name-here"  # REQUIRED: Change this!
+
+# Application Configuration
+app:
+  pollInterval: 60
+  locationName: "Stellenbosch"
+  logLevel: "INFO"
+
+# Image Configuration
+# Update this after building and pushing your Docker image
+image:
+  repository: property24-bot  # Change to your registry/image
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+# Enable persistence for state database (recommended)
+persistence:
+  enabled: true
+  size: 1Gi
+
+# Resource limits (recommended for production)
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Metrics Configuration with full monitoring stack
+metrics:
+  enabled: true
+  port: 8000
+  
+  service:
+    type: ClusterIP
+    port: 8000
+  
+  # ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    # Match the label selector used by your Prometheus instance
+    # For kube-prometheus-stack, this is typically:
+    labels:
+      release: kube-prometheus-stack  # Change to match your Prometheus release name
+      # OR use:
+      # prometheus: kube-prometheus
+  
+  # Grafana Dashboard ConfigMap
+  grafanaDashboard:
+    enabled: true
+    # The grafana_dashboard label is required for auto-discovery by Grafana sidecar
+    labels:
+      grafana_dashboard: "1"
+    # Optional: Add folder annotation to organize dashboards
+    # annotations:
+    #   grafana_folder: "Property24"
+
+# Payload configuration
+payload:
+  useConfigMap: true
+  jsonContent: |
+    {
+      "bedrooms": 0,
+      "bathrooms": 0,
+      "availability": 0,
+      "rentalRates": [],
+      "sizeFrom": {"isCustom": false, "value": null},
+      "sizeTo": {"isCustom": false, "value": null},
+      "erfSizeFrom": {"isCustom": false, "value": null},
+      "erfSizeTo": {"isCustom": false, "value": null},
+      "floorSizeFrom": {"isCustom": false, "value": null},
+      "floorSizeTo": {"isCustom": false, "value": null},
+      "parkingType": 1,
+      "parkingSpaces": 0,
+      "hasFlatlet": null,
+      "hasGarden": null,
+      "hasPool": null,
+      "furnishedStatus": 2,
+      "isPetFriendly": null,
+      "isRepossessed": null,
+      "isRetirement": null,
+      "isInSecurityEstate": null,
+      "onAuction": null,
+      "onShow": null,
+      "propertyTypes": [4, 5, 6],
+      "autoCompleteItems": [
+        {
+          "id": 459,
+          "name": "Stellenbosch",
+          "parentId": null,
+          "parentName": "Western Cape",
+          "type": 2,
+          "source": 0,
+          "normalizedName": "stellenbosch"
+        }
+      ],
+      "searchContextType": 1,
+      "priceFrom": {"isCustom": false, "value": null},
+      "priceTo": {"isCustom": false, "value": null},
+      "searchType": 1,
+      "sortOrder": 0,
+      "developmentSubType": 0
+    }
